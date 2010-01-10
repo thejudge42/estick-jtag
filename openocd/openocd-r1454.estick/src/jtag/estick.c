@@ -1,6 +1,6 @@
 /***************************************************************************
  *                                                                         *
- *   Copyright (C) 2009 by Cahya Wirawan <cahya@gmx.at>                    *
+ *   Copyright (C) 2009 by Cahya Wirawan <cahya@gmx.at>                    * 
  *   Based on opendous driver by Vladimir Fonov                            *
  *                                                                         *
  *   Copyright (C) 2009 by Vladimir Fonov <vladimir.fonov@gmai.com>        * 
@@ -38,6 +38,8 @@
 
 #include <usb.h>
 #include <string.h>
+#include <sys/timeb.h>
+#include <time.h>
 
 #include "log.h"
 
@@ -61,8 +63,9 @@
 
 #define ESTICK_USB_TIMEOUT	   	1000
 
-#define ESTICK_IN_BUFFER_SIZE	  64
-#define ESTICK_OUT_BUFFER_SIZE  64
+#define ESTICK_USB_BUFFER_SIZE 360
+#define ESTICK_IN_BUFFER_SIZE	(ESTICK_USB_BUFFER_SIZE)
+#define ESTICK_OUT_BUFFER_SIZE  (ESTICK_USB_BUFFER_SIZE)
 
 /* Global USB buffers */
 static u8 usb_in_buffer[ESTICK_IN_BUFFER_SIZE];
@@ -71,7 +74,7 @@ static u8 usb_out_buffer[ESTICK_OUT_BUFFER_SIZE];
 /* Constants for ESTICK command */
 
 #define ESTICK_MAX_SPEED 				66
-#define ESTICK_MAX_TAP_TRANSMIT 62  //even number is easier to handle
+#define ESTICK_MAX_TAP_TRANSMIT 350  //even number is easier to handle
 #define ESTICK_MAX_INPUT_DATA   (ESTICK_MAX_TAP_TRANSMIT*4)
 
 #define ESTICK_TAP_BUFFER_SIZE 65536
@@ -133,7 +136,9 @@ int estick_usb_read_emu_result(estick_jtag_t *estick_jtag);
 int estick_get_version_info(void);
 
 #ifdef _DEBUG_USB_COMMS_
+char time_str[50];
 void estick_debug_buffer(u8 *buffer, int length);
+char *estick_get_time(char *);
 #endif
 
 estick_jtag_t* estick_jtag_handle;
@@ -243,7 +248,6 @@ int estick_execute_queue(void)
 		}
 		cmd = cmd->next;
 	}
-
 	return estick_tap_execute();
 }
 
@@ -288,7 +292,7 @@ int estick_init(void)
 
 	if (estick_jtag_handle == 0)
 	{
-		LOG_ERROR("Cannot find estick Interface! Please check connection and permissions.");
+		LOG_ERROR("Cannot find eStick Interface! Please check connection and permissions.");
 		return ERROR_JTAG_INIT_FAILED;
 	}
   
@@ -309,11 +313,11 @@ int estick_init(void)
 		check_cnt++;
 	}
 
-	LOG_INFO("ESTICK JTAG Interface ready");
+	LOG_INFO("eStick JTAG Interface ready");
 
 	estick_reset(0, 0);
 	estick_tap_init();
-	//estick_simple_command ( JTAG_CMD_SET_DELAY,255 );
+	//estick_simple_command ( JTAG_CMD_SET_DELAY, 255);
 
 
 	return ERROR_OK;
@@ -473,13 +477,14 @@ void estick_simple_command(u8 command,uint8_t _data)
 
 	DEBUG_JTAG_IO("0x%02x 0x%02x", command,_data);
 
-	usb_out_buffer[0] = command;
-	usb_out_buffer[1] = _data;
+	usb_out_buffer[0] = (uint16_t) 2;
+	usb_out_buffer[2] = command;
+	usb_out_buffer[3] = _data;
 
-	result = estick_usb_message(estick_jtag_handle, 2, 1);
+	result = estick_usb_message(estick_jtag_handle, 4, 1);
 	if (result != 1)
 	{
-		LOG_ERROR("eStick command 0x%02x failed (%d)", command, result);
+		LOG_ERROR("Estick command 0x%02x failed (%d)", command, result);
 	}
 }
 
@@ -529,7 +534,7 @@ int estick_handle_estick_info_command(struct command_context_s *cmd_ctx, char *c
 }
 
 /***************************************************************************/
-/* Opendous tap functions */
+/* Estick tap functions */
 
 
 static int tap_length;
@@ -613,9 +618,7 @@ void estick_tap_append_scan(int length, u8 *buffer, scan_command_t *command)
 int estick_tap_execute(void)
 {
 	int byte_length,byte_length_out;
-	int tms_offset;
-	int tdi_offset;
-	unsigned int i,j;
+	int i,j;
 	int result;
 	int output_counter;
 
@@ -627,8 +630,11 @@ int estick_tap_execute(void)
 	    //LOG_INFO("ESTICK tap execute %d",tap_length);
 	    byte_length =     (tap_length+3)/4;
 	    byte_length_out = (tap_length+7)/8;
-
-
+	    
+#ifdef _DEBUG_USB_COMMS_
+	    LOG_DEBUG("eStick is sending %d bytes", byte_length);
+#endif
+		
 	    output_counter=0;
 	    for (j = 0, i = 0; j <  byte_length;)
 	    {
@@ -638,18 +644,15 @@ int estick_tap_execute(void)
 				 {
 						 transmit=ESTICK_MAX_TAP_TRANSMIT;
 						 recieve=(ESTICK_MAX_TAP_TRANSMIT)/2;
-						 usb_out_buffer[0]=JTAG_CMD_TAP_OUTPUT;
+						 usb_out_buffer[2]=JTAG_CMD_TAP_OUTPUT;
 
 				 }  else {
-
-						 usb_out_buffer[0]=JTAG_CMD_TAP_OUTPUT | ((tap_length%4)<<4);
+						 usb_out_buffer[2]=JTAG_CMD_TAP_OUTPUT | ((tap_length%4)<<4);
 						 recieve=(transmit+1)/2;
 				 }
-
-				 memmove(usb_out_buffer+1,tms_buffer+j,transmit);
-				 //LOG_INFO("ESTICK sending %d",1 + transmit);
-				 result = estick_usb_message(estick_jtag_handle, 1 + transmit, recieve);
-				 //LOG_INFO("ESTICK got %d",result);
+				 *(uint16_t *)&usb_out_buffer[0]=transmit+1;
+				 memmove(usb_out_buffer+3,tms_buffer+j,transmit);
+				 result = estick_usb_message(estick_jtag_handle, 3 + transmit, recieve);
 				 if(result!=recieve)
 				 {
 						 LOG_ERROR("estick_tap_execute, wrong result %d, expected %d", result, recieve);
@@ -663,10 +666,10 @@ int estick_tap_execute(void)
     
     result=byte_length_out;
 #ifdef _DEBUG_USB_COMMS_
-    LOG_DEBUG("ESTICK tap result %d",result);
+    LOG_DEBUG("eStick tap result %d",result);
     estick_debug_buffer(tdo_buffer,result);
 #endif
-    //LOG_INFO("ESTICK tap execute %d",tap_length);
+    //LOG_INFO("eStick tap execute %d",tap_length);
     for (i = 0; i < pending_scan_results_length; i++)
     {
       pending_scan_result_t *pending_scan_result = &pending_scan_results_buffer[i];
@@ -703,7 +706,7 @@ int estick_tap_execute(void)
 }
 
 /*****************************************************************************/
-/* Opendous USB low-level functions */
+/* Estick USB low-level functions */
 
 estick_jtag_t* estick_usb_open()
 {
@@ -794,9 +797,15 @@ int estick_usb_write(estick_jtag_t *estick_jtag, int out_length)
 		LOG_ERROR("estick_jtag_write illegal out_length=%d (max=%d)", out_length, ESTICK_OUT_BUFFER_SIZE);
 		return -1;
 	}
-
+	
+#ifdef _DEBUG_USB_COMMS_
+	LOG_DEBUG("%s: USB write begin", estick_get_time(time_str));
+#endif
 	result = usb_bulk_write(estick_jtag->usb_handle, ESTICK_WRITE_ENDPOINT, \
 		usb_out_buffer, out_length, ESTICK_USB_TIMEOUT);
+#ifdef _DEBUG_USB_COMMS_
+	LOG_DEBUG("%s: USB write end: %d bytes", estick_get_time(time_str), result);
+#endif
 
 	DEBUG_JTAG_IO("estick_usb_write, out_length = %d, result = %d", out_length, result);
 
@@ -809,10 +818,14 @@ int estick_usb_write(estick_jtag_t *estick_jtag, int out_length)
 /* Read data from USB into in_buffer. */
 int estick_usb_read(estick_jtag_t *estick_jtag)
 {
-	int result = usb_bulk_read(estick_jtag->usb_handle, ESTICK_READ_ENDPOINT, \
-		
-  usb_in_buffer, ESTICK_IN_BUFFER_SIZE, ESTICK_USB_TIMEOUT);
-
+#ifdef _DEBUG_USB_COMMS_
+	LOG_DEBUG("%s: USB read begin", estick_get_time(time_str));
+#endif
+	int result = usb_bulk_read(estick_jtag->usb_handle, ESTICK_READ_ENDPOINT,
+		usb_in_buffer, ESTICK_IN_BUFFER_SIZE, ESTICK_USB_TIMEOUT);
+#ifdef _DEBUG_USB_COMMS_  
+	LOG_DEBUG("%s: USB read end: %d bytes", estick_get_time(time_str), result);
+#endif
 	DEBUG_JTAG_IO("estick_usb_read, result = %d", result);
 
 #ifdef _DEBUG_USB_COMMS_
@@ -841,5 +854,16 @@ void estick_debug_buffer(u8 *buffer, int length)
 		}
 		LOG_DEBUG(line);
 	}
+}
+
+char *estick_get_time(char *str)
+{
+	struct timeb timebuffer;
+    char *timeline;
+
+	ftime( &timebuffer );
+	timeline = ctime( & ( timebuffer.time ) );
+	snprintf(str, 49, "%.8s.%hu", &timeline[11], timebuffer.millitm);
+	return str;
 }
 //#endif

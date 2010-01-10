@@ -22,39 +22,85 @@ void jtag_init(void)
 //! \return    number of bytes used in the in_buffer 
 uint8_t jtag_tap_output_max_speed(const uint8_t *out_buffer, uint16_t out_length, uint8_t *in_buffer)
 {
-  uint16_t i;
-  
+  uint8_t tms_tdi;
+  uint8_t out_data;
+  uint8_t in_data = 0;
+  uint16_t out_buffer_index = 0;
+  uint16_t in_buffer_index = 0;
+  uint16_t out_length_index = 0;
+
 #ifdef      DEBUG
   printf("Sending %d bits \r\n", dataFromHostSize);
 #endif
-  
-  for(i=0 ; i<out_length ; i++ )
+
+  while(1)
   {
-    uint8_t index=i/4;
-    uint8_t bit=  (i%4)*2;
+    out_data = out_buffer[out_buffer_index++];
 
-    uint8_t index2=i/8;
-    uint8_t bit2=  i%8;
-
-    uint8_t tdi=(out_buffer[index]>>bit    )&1;
-    uint8_t tms=(out_buffer[index]>>(bit+1))&1;
-
-    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) )
-               | (tdi<<JTAG_PIN_TDI)
-               | (tms<<JTAG_PIN_TMS);
-
+    //First TMS/TDI/TDO
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
     JTAG_OUT|=JTAG_CLK_HI;//CLK hi
-
     asm("nop");
-
     JTAG_OUT&=JTAG_CLK_LO;//CLK lo
-    uint8_t data=JTAG_IN;
     
-    if(!bit2)
-      in_buffer[index2]=0;
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
     
-    in_buffer[index2] |= ((data>>JTAG_PIN_TDO)&1)<<bit2;
+    //Second TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    asm("nop");
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
+    
+    //Third TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    asm("nop");
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
+
+    //Fourth TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    asm("nop");
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;    
+    if(!(out_length_index%8))
+    {
+      in_buffer[in_buffer_index] = in_data;
+      in_buffer_index++;
+      in_data = 0;
+    }    
+    if(out_length_index>=out_length)
+      break;
   }
+
+  if(out_length_index%8)
+    in_buffer[in_buffer_index] = in_data>>(8-(out_length_index%8));
   
   return (out_length+7)/8;
 }
@@ -66,40 +112,89 @@ uint8_t jtag_tap_output_max_speed(const uint8_t *out_buffer, uint16_t out_length
 //! \return    number of bytes used in the in_buffer 
 uint8_t jtag_tap_output_with_delay(const uint8_t *out_buffer, uint16_t out_length, uint8_t *in_buffer)
 {
-  uint16_t i;
-  
+  uint8_t tms_tdi;
+  uint8_t out_data;
+  uint8_t in_data = 0;
+  uint16_t out_buffer_index = 0;
+  uint16_t in_buffer_index = 0;
+  uint16_t out_length_index = 0;
+
 #ifdef      DEBUG
   printf("Sending %d bits \r\n", dataFromHostSize);
 #endif
-  
-  for(i=0 ; i<out_length ; i++ )
+
+  while(1)
   {
-    uint8_t index=i/4;
-    uint8_t bit=  (i%4)*2;
+    out_data = out_buffer[out_buffer_index++];
 
-    uint8_t index2=i/8;
-    uint8_t bit2=  i%8;
-
-    uint8_t tdi=(out_buffer[index]>>bit    )&1;
-    uint8_t tms=(out_buffer[index]>>(bit+1))&1;
-
-    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) )
-               | (tdi<<JTAG_PIN_TDI)
-               | (tms<<JTAG_PIN_TMS);
-
+    //First TMS/TDI/TDO
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
     JTAG_OUT|=JTAG_CLK_HI;//CLK hi
     _delay_loop_2(jtag_delay);
-
     JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    _delay_loop_2(jtag_delay);
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
+    
+    //Second TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    _delay_loop_2(jtag_delay);
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    _delay_loop_2(jtag_delay);
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
+    
+    //Third TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    _delay_loop_2(jtag_delay);
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    _delay_loop_2(jtag_delay);
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
 
-		_delay_loop_2(jtag_delay);
-    uint8_t data=JTAG_IN;
+    //Fourth TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    _delay_loop_2(jtag_delay);
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    _delay_loop_2(jtag_delay);
     
-    if(!bit2)
-      in_buffer[index2]=0;
-    
-    in_buffer[index2] |= ((data>>JTAG_PIN_TDO)&1)<<bit2;
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    out_length_index++;    
+    if(!(out_length_index%8))
+    {
+      in_buffer[in_buffer_index] = in_data;
+      in_buffer_index++;
+      in_data = 0;
+    }    
+    if(out_length_index>=out_length)
+      break;
   }
+
+  if(out_length_index%8)
+    in_buffer[in_buffer_index] = in_data>>(8-(out_length_index%8));
   
   return (out_length+7)/8;
 }
@@ -112,35 +207,94 @@ uint8_t jtag_tap_output_with_delay(const uint8_t *out_buffer, uint16_t out_lengt
 //! \return    number of bytes used in the in_buffer (equal to the input (length+3)/4
 uint8_t jtag_tap_output_emu(const uint8_t *out_buffer,uint16_t out_length,uint8_t *in_buffer)
 {
-  uint16_t i;
-  
-  for(i=0 ; i<out_length ; i++ )
+  uint8_t tms_tdi;
+  uint8_t out_data;
+  uint8_t in_data = 0;
+  uint16_t out_buffer_index = 0;
+  uint16_t in_buffer_index = 0;
+  uint16_t out_length_index = 0;
+
+  while(1)
   {
-    uint8_t index=i/4;
-    uint8_t bit=(i%4)*2;
+    out_data = out_buffer[out_buffer_index++];
 
-    uint8_t tdi=(out_buffer[index]>>bit)&1;
-    uint8_t tms=(out_buffer[index]>>(bit+1))&1;
-
-    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) )
-        | (tdi<<JTAG_PIN_TDI)
-        | (tms<<JTAG_PIN_TMS);
-
-    if(jtag_delay>0) _delay_loop_2(jtag_delay);
-
+    //First TMS/TDI/TDO
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
     JTAG_OUT|=JTAG_CLK_HI;//CLK hi
-    if(jtag_delay>0) _delay_loop_2(jtag_delay);
-
-
+    _delay_loop_2(jtag_delay);
     JTAG_OUT&=JTAG_CLK_LO;//CLK lo
-    uint8_t data=JTAG_IN;
+    _delay_loop_2(jtag_delay);
     
-    if(!bit)
-      in_buffer[index]=0;
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_EMU))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
     
-    in_buffer[index] |= ((data>>JTAG_PIN_TDO)&1)<<(bit) |
-       ((data>>JTAG_PIN_EMU)&1)<<(bit+1);
+    //Second TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    _delay_loop_2(jtag_delay);
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    _delay_loop_2(jtag_delay);
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_EMU))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
+    
+    //Third TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    _delay_loop_2(jtag_delay);
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    _delay_loop_2(jtag_delay);
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_EMU))&0x80);
+    out_length_index++;
+    if(out_length_index>=out_length)
+      break;
+
+    //Fourth TMS/TDI/TDO
+    out_data = out_data>>2;
+    tms_tdi = out_data & JTAG_SIGNAL_MASK;
+    JTAG_OUT = ( JTAG_OUT & ( ~JTAG_SIGNAL_MASK ) ) | tms_tdi;
+    JTAG_OUT|=JTAG_CLK_HI;//CLK hi
+    _delay_loop_2(jtag_delay);
+    JTAG_OUT&=JTAG_CLK_LO;//CLK lo
+    _delay_loop_2(jtag_delay);
+    
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_TDO))&0x80);
+    in_data = in_data>>1;
+    in_data |= ((JTAG_IN<<(7-JTAG_PIN_EMU))&0x80);
+    out_length_index++;    
+    if(!(out_length_index%4))
+    {
+      in_buffer[in_buffer_index] = in_data;
+      in_buffer_index++;
+      in_data = 0;
+    }    
+    if(out_length_index>=out_length)
+      break;
   }
+
+  if(out_length_index%4)
+    in_buffer[in_buffer_index] = in_data>>(8-2*(out_length_index%4));
+  
   return (out_length+3)/4;
 }
 
