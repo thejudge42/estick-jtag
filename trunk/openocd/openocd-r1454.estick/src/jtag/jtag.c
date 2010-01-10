@@ -146,6 +146,10 @@ static int hasKHz = 0;
 	extern jtag_interface_t jlink_interface;
 #endif
 
+#if BUILD_ESTICK == 1
+	extern jtag_interface_t estick_interface;
+#endif
+
 #if BUILD_VSLLINK == 1
 	extern jtag_interface_t vsllink_interface;
 #endif
@@ -194,6 +198,9 @@ jtag_interface_t *jtag_interfaces[] = {
 #endif
 #if BUILD_JLINK == 1
 	&jlink_interface,
+#endif
+#if BUILD_ESTICK == 1
+	&estick_interface,
 #endif
 #if BUILD_VSLLINK == 1
 	&vsllink_interface,
