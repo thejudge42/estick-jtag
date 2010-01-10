@@ -266,7 +266,7 @@ AC_ARG_ENABLE(jlink,
   [build_jlink=$enableval], [build_jlink=no])
 
 AC_ARG_ENABLE(estick,
-  AS_HELP_STRING([--enable-estick], [Enable building support for the estick JTAG Programmer]),
+  AS_HELP_STRING([--enable-estick], [Enable building support for the eStick JTAG Programmer]),
   [build_estick=$enableval], [build_estick=no])
 
 AC_ARG_ENABLE(vsllink,
@@ -445,9 +445,9 @@ else
 fi
 
 if test $build_estick = yes; then
-  AC_DEFINE(BUILD_ESTICK, 1, [1 if you want the Opendous JTAG driver.])
+  AC_DEFINE(BUILD_ESTICK, 1, [1 if you want the eStick JTAG driver.])
 else
-  AC_DEFINE(BUILD_ESTICK, 0, [0 if you don't want the Opendous JTAG driver.])
+  AC_DEFINE(BUILD_ESTICK, 0, [0 if you don't want the eStick JTAG driver.])
 fi
 
 if test $build_vsllink = yes; then
