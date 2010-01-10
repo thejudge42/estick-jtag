@@ -479,7 +479,7 @@ void estick_simple_command(u8 command,uint8_t _data)
 	result = estick_usb_message(estick_jtag_handle, 2, 1);
 	if (result != 1)
 	{
-		LOG_ERROR("Opendous command 0x%02x failed (%d)", command, result);
+		LOG_ERROR("eStick command 0x%02x failed (%d)", command, result);
 	}
 }
 
