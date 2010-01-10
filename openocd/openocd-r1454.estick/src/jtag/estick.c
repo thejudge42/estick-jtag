@@ -1,5 +1,8 @@
 /***************************************************************************
  *                                                                         *
+ *   Copyright (C) 2009 by Cahya Wirawan <cahya@gmx.at>                    *
+ *   Based on opendous driver by Vladimir Fonov                            *
+ *                                                                         *
  *   Copyright (C) 2009 by Vladimir Fonov <vladimir.fonov@gmai.com>        * 
  *   Based on J-link driver by  Juergen Stuber                             *
  *                                                                         *

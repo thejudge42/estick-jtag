@@ -1,15 +1,8 @@
 /*
-     Copyright (C) Vladimir Fonov, 2009.
-              
- vladimir <dot> fonov <at> gmail <dot> com
-      www.ilmarin.info
-
- Released under the MIT Licence
-*/
-
-/*
-    estick-jtag 
-    Based on LUFA demo applications by Dean Camera and Denver Gingerich.
+    estick-jtag, by Cahya Wirawan <cahya@gmx.at> 
+    Based on opendous-jtag by Vladimir Fonov and LUFA demo applications by Dean Camera and Denver Gi
+ngerich.
+    Released under the MIT Licence.
 */
 
 #ifndef _ESTICK_JTAG_H_
