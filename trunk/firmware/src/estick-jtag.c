@@ -1,7 +1,6 @@
 /*
     estick-jtag, by Cahya Wirawan <cahya@gmx.at> 
-    Based on opendous-jtag by Vladimir Fonov and LUFA demo applications by Dean Camera and Denver Gi
-ngerich.
+    Based on opendous-jtag by Vladimir Fonov and LUFA demo applications by Dean Camera and Denver Gingerich.
     Released under the MIT Licence.
 */
 
@@ -22,8 +21,10 @@ TASK_LIST
 };
 
 /* Global Variables */
-uint8_t  dataFromHost[IN_EP_SIZE];
-uint8_t  dataToHost[OUT_EP_SIZE];
+
+uint8_t  usbBuffer[ESTICK_USB_BUFFER_SIZE+ESTICK_USB_BUFFER_OFFSET];
+uint8_t  *dataFromHost = usbBuffer+ESTICK_USB_BUFFER_OFFSET;
+uint8_t  *dataToHost = usbBuffer;
 uint16_t dataFromHostSize=0;
 uint16_t dataToHostSize=0;
 
@@ -71,12 +72,12 @@ int main(void)
 #endif //DEBUG
   
 	// initialize the send and receive buffers
-	uint8_t i = 0;
-	for (i = 0; i < IN_EP_SIZE; i++) {
+	uint16_t i = 0;
+	for (i = 0; i < ESTICK_OUT_BUFFER_SIZE; i++) {
 		dataFromHost[i] = 0;
 	}
 
-	for (i = 0; i < OUT_EP_SIZE; i++) {
+	for (i = 0; i < ESTICK_IN_BUFFER_SIZE; i++) {
 		dataToHost[i] = 0;
 	}
   dataFromHostSize=0;
@@ -190,7 +191,7 @@ void EVENT_USB_UnhandledControlPacket(void)
 }
 
 TASK(USB_MainTask)
-{
+{	
 	/* Check if the USB System is connected to a Host */
 	if (USB_IsConnected)
 	{
@@ -215,13 +216,11 @@ TASK(USB_MainTask)
 
     if (Endpoint_IsReadWriteAllowed())
     {
-      if( (dataFromHostSize=Endpoint_BytesInEndpoint()) >0 )
-      {
-        Endpoint_Read_Stream_LE(dataFromHost,dataFromHostSize);
-        /* Clear the endpoint buffer */
-        //Endpoint_ClearCurrentBank();
-        Endpoint_ClearOUT();
-        
+	  dataFromHostSize = Endpoint_Read_Word_LE();
+	  Endpoint_Read_Stream_LE(dataFromHost, dataFromHostSize);
+	  Endpoint_ClearOUT();
+	  if(dataFromHostSize>0)
+      {        
         //first byte is always the command
         dataFromHostSize--;
         
@@ -236,12 +235,10 @@ TASK(USB_MainTask)
 
           if( dataFromHost[0] & JTAG_DATA_MASK )
             dataFromHostSize-= (4- ((dataFromHost[0] & JTAG_DATA_MASK)>>4));
-          
-					if(jtag_delay)
-						dataToHostSize= jtag_tap_output_with_delay( &dataFromHost[1] , dataFromHostSize, dataToHost);
-					else
-						dataToHostSize= jtag_tap_output_max_speed( &dataFromHost[1] , dataFromHostSize, dataToHost);
-          
+          if(jtag_delay)
+            dataToHostSize= jtag_tap_output_with_delay( &dataFromHost[1] , dataFromHostSize, dataToHost);
+          else
+            dataToHostSize= jtag_tap_output_max_speed( &dataFromHost[1] , dataFromHostSize, dataToHost);
           break;
           
         case JTAG_CMD_TAP_OUTPUT_EMU:
@@ -271,7 +268,7 @@ TASK(USB_MainTask)
           break;
         
         case JTAG_CMD_SET_DELAY:
-          jtag_delay=dataFromHost[1]*256+dataFromHost[2];
+          jtag_delay=dataFromHost[1]*256;
           dataToHost[0]=0;//TODO: what to output here?
           dataToHostSize=1;
 

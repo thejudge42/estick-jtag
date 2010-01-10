@@ -1,7 +1,6 @@
 /*
     estick-jtag, by Cahya Wirawan <cahya@gmx.at> 
-    Based on opendous-jtag by Vladimir Fonov and LUFA demo applications by Dean Camera and Denver Gi
-ngerich.
+    Based on opendous-jtag by Vladimir Fonov and LUFA demo applications by Dean Camera and Denver Gingerich.
     Released under the MIT Licence.
 */
 
@@ -22,6 +21,11 @@ ngerich.
 	/* Macros: */
 
 	/* Type Defines: */
+	
+	#define ESTICK_USB_BUFFER_SIZE 360
+	#define ESTICK_USB_BUFFER_OFFSET 2
+	#define ESTICK_IN_BUFFER_SIZE	(ESTICK_USB_BUFFER_SIZE)
+	#define ESTICK_OUT_BUFFER_SIZE  (ESTICK_USB_BUFFER_SIZE)
 
 	/* Global Variables: */
 
