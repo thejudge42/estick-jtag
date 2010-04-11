@@ -35,16 +35,9 @@
 #include <jtag/interface.h>
 #include <jtag/commands.h>
 #include "usb_common.h"
-#include <usb.h>
 #include <string.h>
 #include <sys/timeb.h>
 #include <time.h>
-
-/* enable this to debug communication
- */
-#if 1
-#define _DEBUG_USB_COMMS_
-#endif
 
 #define VID 0x1781
 #define PID 0xC0C0
@@ -383,8 +376,9 @@ void estick_state_move(void)
 	int i;
 	int tms = 0;
 	uint8_t tms_scan = tap_get_tms_path(tap_get_state(), tap_get_end_state());
+	uint8_t tms_scan_bits = tap_get_tms_path_len(tap_get_state(), tap_get_end_state());
 
-	for (i = 0; i < 7; i++)
+	for (i = 0; i < tms_scan_bits; i++)
 	{
 		tms = (tms_scan >> i) & 1;
 		estick_tap_append_step(tms, 0);
