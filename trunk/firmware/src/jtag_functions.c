@@ -7,12 +7,12 @@
 
 uint16_t jtag_delay=0;
 
-
 //! initialize JTAG interface
 void jtag_init(void)
 {
-  JTAG_OUT=JTAG_PIN_TRST|JTAG_PIN_SRST; //passive state high
-  JTAG_DIR=JTAG_OUTPUT_MASK; 
+  JTAG_OUT=0;
+  JTAG_DIR=JTAG_OUTPUT_MASK;
+  JTAG_OUT=(1<<JTAG_PIN_TRST)|(1<<JTAG_PIN_SRST); //passive state high
 }
 
 //! send taps through JTAG interface and recieve responce from TDO pin only
